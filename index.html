@@ -1,0 +1,19 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Meanwhile.js Example</title>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
+    <script src="meanwhile.js"></script>
+    <script type="text/javascript">
+        $(function () {
+            var options = {
+                    sourceUrl: 'lastVine.php'
+                }, 
+                $meanwhile = $('#screen').meanwhile(options);
+        });
+    </script>
+</head>
+<body>
+    <div id="screen"></div>
+</body>
+</html>
