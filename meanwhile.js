@@ -8,9 +8,6 @@
         },
         defaultOptions,
         methods,
-        downloading,
-        mainVideo,
-        bufferVideo,
         DEBUG_MODE = true;
 
     function log(message) {
@@ -75,7 +72,7 @@
 
                     log('success!');
 
-                    self.element.attr('src', self.options.id + '.mp4');
+                    self.element.attr('src', data.video_url);
                     self.status = Video.STATUS_READY;
 
                     if (callback) {
@@ -177,6 +174,9 @@
         },
 
         recalculateEffectFactors: function (effect) {
+            var i,
+                temp = [];
+
             switch (effect) {
 
             case 'colorChanging':
@@ -186,15 +186,13 @@
                 break;
 
             case 'random':
-                Canvas.aux.temp = [];
-
-                for (Canvas.aux.i in Canvas.effects) {
-                    if (Canvas.effects.hasOwnProperty(Canvas.aux.i) && Canvas.aux.i !== 'random'){
-                        Canvas.aux.temp.push(Canvas.aux.i);                    
+                for (i in Canvas.effects) {
+                    if (Canvas.effects.hasOwnProperty(i) && i !== 'random') {
+                        temp.push(i);
                     }
                 }
 
-                Canvas.aux.randomEffect = Canvas.aux.temp[Math.round(Math.random() * (Canvas.aux.temp.length - 1))];
+                Canvas.aux.randomEffect = temp[Math.round(Math.random() * (temp.length - 1))];
                 this.recalculateEffectFactors(Canvas.aux.randomEffect);
 
                 break;
@@ -208,8 +206,11 @@
             return (dif * dest + (1 - dif) * src);
         },
 
+        getBrightness: function (r, g, b) {
+            return (3 * r + 4 * g + b) >>> 3;
+        },
+
         recalculateFactor: function (factor) {
-            // return Math.max(0, Math.min(1, factor + factorVariance * (Math.random() - 0.5)));
             return Math.random();
         },
 
@@ -222,6 +223,8 @@
         },
 
         drawOneVideo: function (canvas, video, context, backContext, options) {
+            var idata;
+
             if (!!canvas.timeout) {
                 clearTimeout(canvas.timeout);
             }
@@ -231,50 +234,40 @@
             }
 
             backContext.drawImage(video.video, 0, 0, options.width, options.height);
-            Canvas.aux.idata = backContext.getImageData(0, 0, options.width, options.height);
-            Canvas.aux.idata.data = Canvas.effects[options.effect](Canvas.aux.idata.data, canvas);
+            idata = backContext.getImageData(0, 0, options.width, options.height);
+            idata.data = Canvas.effects[options.effect](idata.data, canvas);
 
-            context.putImageData(Canvas.aux.idata, 0, 0);
+            context.putImageData(idata, 0, 0);
             // Start over!        
             canvas.timeout = setTimeout(Canvas.utils.drawOneVideo, 20, canvas, video, context, backContext, options);
         }
     };
 
     Canvas.aux = {
-        i: 0,
-        j: 0,
-        k: 0,
-        column: 0,
-        row: 0,
-        dataInRow: 0,
-        r: 0,
-        g: 0,
-        b: 0,
-        brightness: 0,
-        data: null,
-        idata: null,
-        factorVariance: 0.4,
         rfactor: [0.5, 0.5, 0.5],
         gfactor: [0.5, 0.5, 0.5],
         bfactor: [0.5, 0.5, 0.5],
-        temp: undefined,
-        randomEffect: null,
+        randomEffect: null
     };
 
     Canvas.effects = {
         blackandwhite: function (data, canvas) {
 
-            for (Canvas.aux.i = 0; Canvas.aux.i < data.length; Canvas.aux.i = Canvas.aux.i + 4) {
-                Canvas.aux.r = data[Canvas.aux.i];
-                Canvas.aux.g = data[Canvas.aux.i + 1];
-                Canvas.aux.b = data[Canvas.aux.i + 2];
+            var i, j,
+                r, g, b,
+                brightness;
 
-                Canvas.aux.brightness = (3 * Canvas.aux.r + 4 * Canvas.aux.g + Canvas.aux.b) >>> 3;
-                Canvas.aux.brightness = Canvas.aux.brightness > 128 ? 255 : 0;
+            for (i = 0; i < data.length; i = i + 4) {
+                r = data[i];
+                g = data[i + 1];
+                b = data[i + 2];
 
-                data[Canvas.aux.i]     = Canvas.aux.brightness;
-                data[Canvas.aux.i + 1] = Canvas.aux.brightness;
-                data[Canvas.aux.i + 2] = Canvas.aux.brightness;
+                brightness = Canvas.utils.getBrightness(r, g, b);
+                brightness = brightness > 128 ? 255 : 0;
+
+                data[i]     = brightness;
+                data[i + 1] = brightness;
+                data[i + 2] = brightness;
             }
 
             return data;
@@ -282,18 +275,22 @@
 
         palette: function (data, canvas) {
 
-            for (Canvas.aux.i = 0; Canvas.aux.i < data.length; Canvas.aux.i = Canvas.aux.i + 4) {
-                Canvas.aux.r = data[Canvas.aux.i];
-                Canvas.aux.g = data[Canvas.aux.i + 1];
-                Canvas.aux.b = data[Canvas.aux.i + 2];
+            var i, j,
+                r, g, b,
+                brightness;
 
-                Canvas.aux.brightness = (3 * Canvas.aux.r + 4 * Canvas.aux.g + Canvas.aux.b) >>> 3;
+            for (i = 0; i < data.length; i = i + 4) {
+                r = data[i];
+                g = data[i + 1];
+                b = data[i + 2];
 
-                Canvas.aux.j = Math.floor(Canvas.aux.brightness * canvas.options.palette.length / 256);
+                brightness = Canvas.utils.getBrightness(r, g, b);
 
-                data[Canvas.aux.i]     = canvas.options.palette[Canvas.aux.j][0];
-                data[Canvas.aux.i + 1] = canvas.options.palette[Canvas.aux.j][1];
-                data[Canvas.aux.i + 2] = canvas.options.palette[Canvas.aux.j][2];
+                j = Math.floor(brightness * canvas.options.palette.length / 256);
+
+                data[i]     = canvas.options.palette[j][0];
+                data[i + 1] = canvas.options.palette[j][1];
+                data[i + 2] = canvas.options.palette[j][2];
             }
 
             return data;
@@ -301,16 +298,20 @@
 
         grayscale: function (data, canvas) {
 
-            for (Canvas.aux.i = 0; Canvas.aux.i < data.length; Canvas.aux.i = Canvas.aux.i + 4) {
-                Canvas.aux.r = data[Canvas.aux.i];
-                Canvas.aux.g = data[Canvas.aux.i + 1];
-                Canvas.aux.b = data[Canvas.aux.i + 2];
+            var i, j,
+                r, g, b,
+                brightness;
 
-                Canvas.aux.brightness = (3 * Canvas.aux.r + 4 * Canvas.aux.g + Canvas.aux.b) >>> 3;
+            for (i = 0; i < data.length; i = i + 4) {
+                r = data[i];
+                g = data[i + 1];
+                b = data[i + 2];
 
-                data[Canvas.aux.i]     = Canvas.aux.brightness;
-                data[Canvas.aux.i + 1] = Canvas.aux.brightness;
-                data[Canvas.aux.i + 2] = Canvas.aux.brightness;
+                brightness = Canvas.utils.getBrightness(r, g, b);
+
+                data[i]     = brightness;
+                data[i + 1] = brightness;
+                data[i + 2] = brightness;
             }
 
             return data;
@@ -318,14 +319,17 @@
 
         sepia: function (data, canvas) {
 
-            for (Canvas.aux.i = 0; Canvas.aux.i < data.length; Canvas.aux.i = Canvas.aux.i + 4) {
-                Canvas.aux.r = data[Canvas.aux.i];
-                Canvas.aux.g = data[Canvas.aux.i + 1];
-                Canvas.aux.b = data[Canvas.aux.i + 2];
+            var i, j,
+                r, g, b;
 
-                data[Canvas.aux.i]     = Canvas.utils.findColorDifference(canvas.options.effectOpacity, (Canvas.aux.r * 0.393) + (Canvas.aux.g * 0.769) + (Canvas.aux.b * 0.189), Canvas.aux.r);
-                data[Canvas.aux.i + 1] = Canvas.utils.findColorDifference(canvas.options.effectOpacity, (Canvas.aux.r * 0.349) + (Canvas.aux.g * 0.686) + (Canvas.aux.b * 0.168), Canvas.aux.g);
-                data[Canvas.aux.i + 2] = Canvas.utils.findColorDifference(canvas.options.effectOpacity, (Canvas.aux.r * 0.272) + (Canvas.aux.g * 0.534) + (Canvas.aux.b * 0.131), Canvas.aux.b);
+            for (i = 0; i < data.length; i = i + 4) {
+                r = data[i];
+                g = data[i + 1];
+                b = data[i + 2];
+
+                data[i]     = Canvas.utils.findColorDifference(canvas.options.effectOpacity, (r * 0.393) + (g * 0.769) + (b * 0.189), r);
+                data[i + 1] = Canvas.utils.findColorDifference(canvas.options.effectOpacity, (r * 0.349) + (g * 0.686) + (b * 0.168), g);
+                data[i + 2] = Canvas.utils.findColorDifference(canvas.options.effectOpacity, (r * 0.272) + (g * 0.534) + (b * 0.131), b);
             }
 
             return data;
@@ -333,14 +337,17 @@
 
         colorChanging: function (data, canvas) {
 
-            for (Canvas.aux.i = 0; Canvas.aux.i < data.length; Canvas.aux.i = Canvas.aux.i + 4) {
-                Canvas.aux.r = data[Canvas.aux.i];
-                Canvas.aux.g = data[Canvas.aux.i + 1];
-                Canvas.aux.b = data[Canvas.aux.i + 2];
+            var i, j,
+                r, g, b;
 
-                data[Canvas.aux.i]     = Canvas.utils.findColorDifference(canvas.options.effectOpacity, (Canvas.aux.r * Canvas.aux.rfactor[0]) + (Canvas.aux.g * Canvas.aux.rfactor[1]) + (Canvas.aux.b * Canvas.aux.rfactor[2]), Canvas.aux.r);
-                data[Canvas.aux.i + 1] = Canvas.utils.findColorDifference(canvas.options.effectOpacity, (Canvas.aux.r * Canvas.aux.gfactor[0]) + (Canvas.aux.g * Canvas.aux.gfactor[1]) + (Canvas.aux.b * Canvas.aux.gfactor[2]), Canvas.aux.g);
-                data[Canvas.aux.i + 2] = Canvas.utils.findColorDifference(canvas.options.effectOpacity, (Canvas.aux.r * Canvas.aux.bfactor[0]) + (Canvas.aux.g * Canvas.aux.bfactor[1]) + (Canvas.aux.b * Canvas.aux.bfactor[2]), Canvas.aux.b);
+            for (i = 0; i < data.length; i = i + 4) {
+                r = data[i];
+                g = data[i + 1];
+                b = data[i + 2];
+
+                data[i]     = Canvas.utils.findColorDifference(canvas.options.effectOpacity, (r * Canvas.aux.rfactor[0]) + (g * Canvas.aux.rfactor[1]) + (b * Canvas.aux.rfactor[2]), r);
+                data[i + 1] = Canvas.utils.findColorDifference(canvas.options.effectOpacity, (r * Canvas.aux.gfactor[0]) + (g * Canvas.aux.gfactor[1]) + (b * Canvas.aux.gfactor[2]), g);
+                data[i + 2] = Canvas.utils.findColorDifference(canvas.options.effectOpacity, (r * Canvas.aux.bfactor[0]) + (g * Canvas.aux.bfactor[1]) + (b * Canvas.aux.bfactor[2]), b);
             }
 
             return data;
@@ -349,16 +356,20 @@
 
         v_mirror: function (data, canvas) {
 
-            Canvas.aux.dataInRow = canvas.options.width * 4;
+            var i, j, k,
+                dataInRow,
+                row, column;
 
-            for (Canvas.aux.i = 0; Canvas.aux.i < (data.length / 2); Canvas.aux.i = Canvas.aux.i + 4) {
-                Canvas.aux.column = (Canvas.aux.i % (Canvas.aux.dataInRow / 2)) / 4;
-                Canvas.aux.row = Math.floor(Canvas.aux.i / (Canvas.aux.dataInRow / 2));
-                Canvas.aux.k = Canvas.aux.row * Canvas.aux.dataInRow + Canvas.aux.column * 4
-                Canvas.aux.j = (Canvas.aux.row + 1) * Canvas.aux.dataInRow - (Canvas.aux.column * 4) - 4;
-                data[Canvas.aux.j] = data[Canvas.aux.k];
-                data[Canvas.aux.j + 1] = data[Canvas.aux.k + 1];
-                data[Canvas.aux.j + 2] = data[Canvas.aux.k + 2];
+            dataInRow = canvas.options.width * 4;
+
+            for (i = 0; i < (data.length / 2); i = i + 4) {
+                column = (i % (dataInRow / 2)) / 4;
+                row = Math.floor(i / (dataInRow / 2));
+                k = row * dataInRow + column * 4;
+                j = (row + 1) * dataInRow - (column * 4) - 4;
+                data[j] = data[k];
+                data[j + 1] = data[k + 1];
+                data[j + 2] = data[k + 2];
             }
 
             return data;
@@ -366,15 +377,20 @@
 
         h_mirror: function (data, canvas) {
 
-            Canvas.aux.dataInRow = canvas.options.width * 4;
+            var i, j,
+                row, column,
+                dataInRow;
 
-            for (Canvas.aux.i = 0; Canvas.aux.i < (data.length / 2); Canvas.aux.i = Canvas.aux.i + 4) {
-                Canvas.aux.column = (Canvas.aux.i % Canvas.aux.dataInRow) / 4;
-                Canvas.aux.row = Math.floor(Canvas.aux.i / Canvas.aux.dataInRow);
-                Canvas.aux.j = data.length - (Canvas.aux.row + 1) * Canvas.aux.dataInRow + Canvas.aux.column * 4;
-                data[Canvas.aux.j] = data[Canvas.aux.i];
-                data[Canvas.aux.j + 1] = data[Canvas.aux.i + 1];
-                data[Canvas.aux.j + 2] = data[Canvas.aux.i + 2];
+            dataInRow = canvas.options.width * 4;
+
+            for (i = 0; i < (data.length / 2); i = i + 4) {
+                column = (i % dataInRow) / 4;
+                row = Math.floor(i / dataInRow);
+                j = data.length - (row + 1) * dataInRow + column * 4;
+
+                data[j] = data[i];
+                data[j + 1] = data[i + 1];
+                data[j + 2] = data[i + 2];
             }
 
             return data;
@@ -382,24 +398,29 @@
 
         matrix: function (data, canvas) {
 
-            Canvas.aux.data = [];
-            Canvas.aux.dataInRow = canvas.options.width * 4;
-            Canvas.aux.k = canvas.options.width / canvas.options.cellsPerDimension;
+            var i, j, k,
+                row, column,
+                dataInRow,
+                dataAux;
 
-            for (Canvas.aux.i = 0; Canvas.aux.i < data.length; Canvas.aux.i = Canvas.aux.i + 4) {
-                Canvas.aux.column = (Canvas.aux.i % Canvas.aux.dataInRow) / 4;
-                Canvas.aux.row = Math.floor(Canvas.aux.i / Canvas.aux.dataInRow);
-                Canvas.aux.j = canvas.options.cellsPerDimension * (Canvas.aux.column % (Canvas.aux.k)) * 4 + Canvas.aux.dataInRow * canvas.options.cellsPerDimension * (Canvas.aux.row % Canvas.aux.k);
+            dataAux = [];
+            dataInRow = canvas.options.width * 4;
+            k = canvas.options.width / canvas.options.cellsPerDimension;
 
-                Canvas.aux.data[Canvas.aux.i] = data[Canvas.aux.j];
-                Canvas.aux.data[Canvas.aux.i + 1] = data[Canvas.aux.j + 1];
-                Canvas.aux.data[Canvas.aux.i + 2] = data[Canvas.aux.j + 2];
-                Canvas.aux.data[Canvas.aux.i + 3] = data[Canvas.aux.j + 3];
+            for (i = 0; i < data.length; i = i + 4) {
+                column = (i % dataInRow) / 4;
+                row = Math.floor(i / dataInRow);
+                j = canvas.options.cellsPerDimension * (column % k) * 4 + dataInRow * canvas.options.cellsPerDimension * (row % k);
+
+                dataAux[i] = data[j];
+                dataAux[i + 1] = data[j + 1];
+                dataAux[i + 2] = data[j + 2];
+                dataAux[i + 3] = data[j + 3];
             }
 
             // data is a readonly array, so we have to modify one cell each time
-            for (Canvas.aux.i = 0; Canvas.aux.i < data.length; Canvas.aux.i = Canvas.aux.i + 1) {
-                data[Canvas.aux.i] = Canvas.aux.data[Canvas.aux.i];
+            for (i = 0; i < data.length; i = i + 1) {
+                data[i] = dataAux[i];
             }
 
             return data;
@@ -407,14 +428,15 @@
 
         superpixel: function (data, canvas) {
 
-            for (Canvas.aux.i = 0; Canvas.aux.i < data.length; Canvas.aux.i = Canvas.aux.i + 4) {
-                
-                Canvas.aux.j = Canvas.aux.i - Canvas.aux.i % 64;
+            var i, j;
 
-                data[Canvas.aux.i] = data[Canvas.aux.j];
-                data[Canvas.aux.i + 1] = data[Canvas.aux.j + 1];
-                data[Canvas.aux.i + 2] = data[Canvas.aux.j + 2];
-                data[Canvas.aux.i + 3] = data[Canvas.aux.j + 3];
+            for (i = 0; i < data.length; i = i + 4) {
+                j = i - i % 64;
+
+                data[i] = data[j];
+                data[i + 1] = data[j + 1];
+                data[i + 2] = data[j + 2];
+                data[i + 3] = data[j + 3];
             }
 
             return data;
@@ -426,6 +448,10 @@
     };
 
     function videoLoop(sourceUrl, video1, video2, canvas) {
+        var downloading,
+            mainVideo,
+            bufferVideo;
+
         log('showing ' + video1.id());
 
         downloading = video1.status === Video.STATUS_DOWNLOADING;
@@ -473,7 +499,7 @@
                         id: 'video_2'
                     }),
                     canvas = new Canvas({
-                        effect: 'palette'
+                        effect: 'random'
                     });
 
                 $this.append(video1.element).append(video2.element).append(canvas.element);

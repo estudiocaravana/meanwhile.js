@@ -1,0 +1,6 @@
+# Sublime Text 2 files
+*.sublime*
+sftp-config.json
+
+# Local videos
+*.mp4
