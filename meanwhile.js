@@ -122,6 +122,13 @@
     Canvas.Instance = function (options) {
         var self = this;
 
+        function centerCanvas() {
+            self.element.css({
+                // Vertically center the square videos
+                'margin-top': (($(window).height() - $(window).width()) / 2) + 'px'
+            });
+        }
+
         this.options = {
             effect: 'colorChanging',
             effectOpacity: 1,
@@ -148,12 +155,13 @@
             .css({
                 'position': 'absolute',
                 'top': 0,
-                // Vertically center the square videos
-                'margin-top': (($(window).height() - $(window).width()) / 2) + 'px',
                 'left': 0,
                 'width': '100%',
                 'display': 'block'
             });
+
+        centerCanvas();
+        $(window).resize(centerCanvas);
 
         this.element.get(0).width = this.options.width;
         this.element.get(0).height = this.options.height;
@@ -170,6 +178,13 @@
     Canvas.Instance.prototype = {
         draw: function (video) {
             this.recalculateEffectFactors(this.options.effect);
+
+            if (!!this.options.onDraw) {
+                this.options.onDraw({
+                    'effect': this.options.effect === 'random' ? Canvas.aux.randomEffect : this.options.effect
+                });
+            }
+
             Canvas.utils.drawOneVideo(this, video, this.context, this.backContext, this.options);
         },
 
@@ -179,7 +194,7 @@
 
             switch (effect) {
 
-            case 'colorChanging':
+            case 'randomColorTone':
                 Canvas.aux.rfactor = Canvas.utils.recalculateFactorArray(Canvas.aux.rfactor);
                 Canvas.aux.gfactor = Canvas.utils.recalculateFactorArray(Canvas.aux.gfactor);
                 Canvas.aux.bfactor = Canvas.utils.recalculateFactorArray(Canvas.aux.bfactor);
@@ -251,7 +266,7 @@
     };
 
     Canvas.effects = {
-        blackandwhite: function (data, canvas) {
+        blackAndWhite: function (data, canvas) {
 
             var i, j,
                 r, g, b,
@@ -335,7 +350,7 @@
             return data;
         },
 
-        colorChanging: function (data, canvas) {
+        randomColorTone: function (data, canvas) {
 
             var i, j,
                 r, g, b;
@@ -354,7 +369,7 @@
 
         },
 
-        v_mirror: function (data, canvas) {
+        verticalMirror: function (data, canvas) {
 
             var i, j, k,
                 dataInRow,
@@ -375,7 +390,7 @@
             return data;
         },
 
-        h_mirror: function (data, canvas) {
+        horizontalMirror: function (data, canvas) {
 
             var i, j,
                 row, column,
@@ -426,7 +441,7 @@
             return data;
         },
 
-        superpixel: function (data, canvas) {
+        superPixel: function (data, canvas) {
 
             var i, j;
 
@@ -472,6 +487,7 @@
             log(mainVideo.id() + ' ended');
             videoLoop(sourceUrl, bufferVideo, mainVideo, canvas);
         });
+
         canvas.draw(mainVideo);
 
         if (!downloading) {
@@ -480,7 +496,8 @@
     }
 
     defaultOptions = {
-        sourceUrl: null
+        sourceUrl: null,
+        onDraw: undefined
     };
     methods = {
         init: function (options) {
@@ -499,7 +516,8 @@
                         id: 'video_2'
                     }),
                     canvas = new Canvas({
-                        effect: 'random'
+                        effect: 'random',
+                        onDraw: options.onDraw
                     });
 
                 $this.append(video1.element).append(video2.element).append(canvas.element);
