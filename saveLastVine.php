@@ -5,7 +5,7 @@ $session_id = session_id();
 
 $buffer_name = isset($_GET['buffer']) ? $_GET['buffer'] : 'buffer_0';
 
-define('VINE_URL', 'http://www.vinepeek.com/videos');
+define('VINE_URL', 'http://www.vpeeker.com/videos');
 
 $ch = curl_init(VINE_URL);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
